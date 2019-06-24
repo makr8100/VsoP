@@ -1,0 +1,153 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    background-color: #333333;
+    color: #ffffff;
+    font-family: Tahoma,Arial;
+    margin-top: 50px;
+}
+
+#nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 32px;
+    width: 100%;
+    background: rgba(0,0,0,.85);
+    color: #ffffff;
+    z-index: 100;
+}
+
+#nav>* {
+    font-size: 15px;
+}
+
+#nav>ul{
+    display: inline-block;
+    margin: 0;
+    height: 100%;
+}
+
+#nav>ul>li {
+    display: inline-block;
+    padding: 5px 20px 5px 5px;
+    height: 100%;
+}
+
+#nav>ul ul {
+    background: rgba(0,0,0,.85);
+}
+
+#nav a {
+    height: 100%;
+    color: #ffffff;
+    text-decoration: none;
+    padding: 3px;
+}
+
+#nav>ul>li>ul {
+    width: 100%;
+    min-width: 120px;
+}
+
+#nav>ul>li>ul a {
+    display: inline-block;
+    width: 100%;
+}
+
+#nav li:hover {
+    background-color: #cc0000;
+}
+
+#nav li {
+    display: block;
+    position: relative;
+}
+
+#nav li:hover {
+    cursor: pointer;
+}
+
+#nav>ul>li ul {
+    display: none;
+    position: absolute;
+    top: 32px;
+    left: 0;
+    padding: 0;
+    opacity: 0;
+    transition: all 0.5s ease;
+}
+
+#nav>ul>li ul>li {
+    padding: 4px 10px;
+}
+
+#nav>ul li:hover > ul,
+#nav>ul li ul:hover {
+    display: block;
+    opacity: 1;
+}
+
+#nav>ul li ul li {
+    clear: both;
+    width: 100%;
+}
+
+#nav #login {
+    float: right;
+    font-size: 24px;
+    padding: 0 10px;
+    cursor: pointer;
+}
+
+#nav #login:hover {
+    color: #99ff33;
+}
+
+.view {
+    display: none;
+}
+
+.tile {
+    position: relative;
+    display: inline-block;
+    float: left;
+    margin: 10px 0;
+    overflow: hidden;
+    width: 99%;
+    animation: fade 2s;
+    background: rgba(0,0,0,.6);
+    border: solid 1px #333333;
+    padding: 5px;
+}
+
+.tile .title {
+    width: 100%;
+    padding: 5px;
+    font-weight: bold;
+}
+
+.tile p {
+    padding: 5px;
+}
+
+.tile button.edit {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    font-size: 32px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.tile button.edit:hover {
+    color: #cc0000;
+}
