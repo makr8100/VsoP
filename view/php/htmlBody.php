@@ -6,7 +6,7 @@ require_once __DIR__ . '/htmlNavMenu.php';
 
 echo '<div id="container">';
 
-$htmlDir = __DIR__ . '/../html';
+$htmlDir = $_SERVER['DOCUMENT_ROOT'] . '/../vueelements';
 $htmlIncludes = folderLoader($htmlDir);
 foreach($htmlIncludes as $file) {
     include "$htmlDir/$file";

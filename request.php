@@ -4,7 +4,7 @@
  * request.php - AJAX handler
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-06-24
+ * @copyright    2019-07-15
  * @package      VsoP
  * @name         request.php
  * @since        2019-06-24
@@ -37,17 +37,30 @@ $limit = '';
 
 if (isset($_REQUEST['data']['pg'])) {
     $start = ($_REQUEST['data']['pg'] - 1) * 100;
-    $limit = "LIMIT $start, 100";
+    $limit = "LIMIT $start, 100"; //TODO: test, delete this
 }
 
-//TODO: check type of routing, die if not exists
+if (isset($config['mapping'][$request]['poll'])) {
+    $data['poll'] = $config['mapping'][$request]['poll'];
+}
 
-$sql = str_replace('/*limit*/', $limit, file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$config['mapping'][$request]['table']}.sql"));
-$parms = [];
+//TODO: $config['mapping'][$request][$config['mapping'][$request]['type']] -- yes/no?
+if ($config['mapping'][$request]['type'] == 'db') {
+    $sql = str_replace('/*limit*/', $limit, file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$config['mapping'][$request]['table']}.sql"));
+    $parms = [];
 
-$stmt = $db[0]->prepare($sql); //TODO: get db by key in routing
-$stmt->execute($parms);
-$data['results'] = $stmt->fetchAll();
+    $stmt = $db[$config['mapping'][$request]['db']]->prepare($sql);
+    $stmt->execute($parms);
+    $data['results'] = $stmt->fetchAll();
+    // $data['sql'] = $sql;
+} elseif ($config['mapping'][$request]['type'] == 'file') {
+    $parser = new FileParser($config['mapping'][$request]['file'], $config['mapping'][$request]['input']);
+    $data['results'] = $parser->output($config['mapping'][$request]['output']);
+} else {
+    die("ROUTING NOT FOUND!");
+}
+
+
 
 if (!empty($data['results'])) {
     if (isset($cache)) {
@@ -56,7 +69,6 @@ if (!empty($data['results'])) {
     $data['status'] = 200;
 }
 
-// $data['sql'] = $sql;
 $data['cfg'] = $config;
 
 echo json_encode($data);

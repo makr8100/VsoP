@@ -9,6 +9,8 @@
  * @version      0.11
  */
 
+var poll = null;
+
 function parseHash() {
     var hashPairs = location.hash.substring(2).split('&');
     var hashObject = {};
@@ -24,6 +26,7 @@ function parseHash() {
 var h = parseHash();
 
 function buildHash(add, remove) {
+    clearTimeout(poll);
     if (remove) {
         for (var keyr in remove) {
             if (typeof h[keyr] !== 'undefined') delete h[keyr];
@@ -59,6 +62,7 @@ function handleHash() {
                 if (h.action == 'view' && typeof h.id === 'undefined') {
                     vueobj[h.view] = data.results;
                     $('#' + h.view).show();
+                    if (typeof data.poll !== 'undefined') poll = setTimeout(pollData(), data.poll);
                 } else if (h.action == 'view') {
                     // TODO: html for detail
                 } else if (h.action == 'new') {
@@ -73,6 +77,37 @@ function handleHash() {
             console.log(data);
         });
     }
+}
+
+function pollData() {
+    var ajax = $.ajax({
+            url: h.view,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                data: h
+            }
+        }).done(function(data) {
+            console.log(data);
+            if (data.status == 200) {
+                if (h.action == 'view' && typeof h.id === 'undefined') {
+                    vueobj[h.view] = data.results;
+                    $('#' + h.view).show();
+                    if (typeof data.poll !== 'undefined') {
+                        poll = setTimeout(function() { pollData() }, data.poll);
+                    }
+                    console.log(data.poll);
+                } else if (h.action == 'view') {
+                    // TODO: html for detail
+                }
+            } else {
+                //fail
+                console.log(data);
+            }
+        }).fail(function(data) {
+            //fail
+            console.log(data);
+        });
 }
 
 $(window).on('hashchange', function() {

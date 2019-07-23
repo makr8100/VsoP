@@ -13,14 +13,16 @@
 
 function recurseMenu($menu) {
     $navHTML = '<ul>';
-    foreach($menu as $link) {
-        if (isset($link['children'])) {
-            $navHTML .= '<li>' . $link['text'];
-            $navHTML .= recurseMenu($link['children']);
-            $navHTML .= '</li>';
-        } else {
-            $navHTML .= "<li><a class='link' href='{$link['uri']}'>{$link['text']}</a></li>";
-        }       
+    if (is_array($menu)) {
+        foreach($menu as $link) {
+            if (isset($link['children'])) {
+                $navHTML .= '<li>' . $link['text'];
+                $navHTML .= recurseMenu($link['children']);
+                $navHTML .= '</li>';
+            } else {
+                $navHTML .= "<li><a class='link' href='{$link['uri']}'>{$link['text']}</a></li>";
+            }       
+        }
     }
     $navHTML .= '</ul>';
 
