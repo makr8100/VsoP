@@ -4,11 +4,12 @@
  * Cache - shmop wrapper to manage cache stores
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-06-24
+ * @copyright    2019-12-13
  * @package      VsoP
  * @name         Cache
  * @since        2019-06-24
- * @version      0.11
+ * @version      0.13
+ * @license      MIT
  *
  * @source { // SAMPLE USAGE:
  *     $cache = new Cache();
@@ -73,7 +74,7 @@ class Cache {
     */
     private function getID($name) {
         global $config;
-        return $config['cache'][$name];
+        return $config['cache'][$name]['id'];
     }
 
     /**

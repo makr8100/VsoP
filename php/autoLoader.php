@@ -4,11 +4,11 @@
  * autoLoader.php
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-06-24
+ * @copyright    2019-12-13
  * @package      VsoP
  * @name         autoLoader.php
  * @since        2019-06-24
- * @version      0.11
+ * @version      0.13
  */
 
 $phpDir = __DIR__;

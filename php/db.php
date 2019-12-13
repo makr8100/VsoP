@@ -4,17 +4,19 @@
  * db.php - manage PDO data sources
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-06-24
+ * @copyright    2019-12-13
  * @package      VsoP
  * @name         db.php
  * @since        2019-06-24
- * @version      0.11
+ * @version      0.13
+ * @license      MIT
  */
 
 $db = [];
 
 foreach ($config['db'] as $dbc) {
-    $pdoString = "{$dbc['engine']}:host={$dbc['dsn']};dbname={$dbc['dbn']}";
+    if (isset($dbc['catalog'])) $pdoString = "{$dbc['engine']}:{$dbc['catalog']}";
+    else $pdoString = "{$dbc['engine']}:host={$dbc['dsn']};dbname={$dbc['dbn']}";
     if (isset($dbc['char'])) $pdoString .= ";charset={$dbc['char']}";
     $opts = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -23,11 +25,12 @@ foreach ($config['db'] as $dbc) {
     ];
 
     try {
-         $db[] = new PDO($pdoString, $dbc['usr'], $dbc['pwd'], $opts);
+         $db[] = (isset($pdoString) && isset($dbc['usr']) && isset($dbc['pwd'])) ? new PDO($pdoString, $dbc['usr'], $dbc['pwd'], $opts) : new PDO($pdoString);
     } catch (\PDOException $e) {
          throw new \PDOException($e->getMessage(), (int)$e->getCode());
     }
 
     unset($pdoString);
 }
+
 unset($config['db']);
