@@ -221,6 +221,7 @@ function handleHash() {
                     data: vueData,
                     methods: vueMethods
                 });
+                pollTables();
             });
         } else {
             pollData(true);
