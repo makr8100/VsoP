@@ -4,11 +4,11 @@
  * request.php - AJAX handler
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-12-13
+ * @copyright    2019-12-16
  * @package      VsoP
  * @name         request.php
  * @since        2019-06-24
- * @version      0.13
+ * @version      0.14
  * @license      MIT
  */
 
@@ -51,10 +51,7 @@ if (isset($_REQUEST['data']['view'])) {
         default:        $permission = 'w';  break;
     }
 
-    if (!$sess->authCheck($request, $permission)) {
-        $data['status'] = 403;
-        $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
-    } else {
+    if ($sess->authCheck($request, $permission)) {
         if (isset($config['cache'][$request])) {
             $cache = new Cache();
             $data['results'] = $cache->get($request);

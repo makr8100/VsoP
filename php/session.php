@@ -4,11 +4,11 @@
  * Session - user login SQL and permissions/authority handling
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-12-13
+ * @copyright    2019-12-16
  * @package      VsoP
  * @name         Session
  * @since        2019-06-24
- * @version      0.13
+ * @version      0.14
  * @license      MIT
  *
  * @source { // SAMPLE USAGE:
@@ -87,7 +87,12 @@ class Session {
 
     public function authCheck($key, $permission) {
         global $config;
-        return (!empty($config['mapping'][$key]['noauth']) || !empty($this->user['authority'][$key][$permission]));
+        $isAuth = (!empty($config['mapping'][$key]['noauth']) || !empty($this->user['authority'][$key][$permission]));
+        if (!$isAuth) {
+            $data['status'] = 403;
+            if (!empty($this->user['authority'])) $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
+        }
+        return $isAuth;
     }
 
     private function verifyPassword(&$user, $fields, $password) {

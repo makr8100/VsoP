@@ -12,6 +12,8 @@
  * @license      MIT
  */
 
+//TODO: db connect only on use - don't connect to a data source unless we have a reason
+
 $db = [];
 
 foreach ($config['db'] as $dbc) {
