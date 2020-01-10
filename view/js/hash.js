@@ -80,8 +80,15 @@ const vueMethods = {
         $('#exportPreview').find('.dataContainer .title').each(function() {
             if ($(this).find('input[type=checkbox]').is(':checked')) exports.push($(this).attr('data-id'));
         });
-        if (exports.length) exportToJDE(true, exports);
+        if (exports.length) exportData(true, exports);
         else return false;
+    },
+    viewFMT: function(fmt) {
+        var args = ['fmt=' + fmt];
+        for (var p in h) {
+            args.push('data[' + p + ']=' + h[p]);
+        }
+        window.open('/?' + args.join('&'));
     }
 }
 
@@ -116,6 +123,7 @@ function postMessages(messages, status, request, proper, clearFirst) {
 function pollTables() {
     if (typeof tables !== 'undefined') {
         for (var table in tables) {
+            if (typeof vueobj[tables[table]] === 'undefined') vueobj[table] = {}
             pollData(false, table, tables[table]);
         }
     }
@@ -242,7 +250,7 @@ function pollCallback(zData, genView) {
     if (zData.statusText === 'abort') return false;
     if (typeof zData.responseJSON !== 'undefined') data = zData.responseJSON;
     else data = zData;
-    loginConfig = data.loginConfig;
+    if (typeof loginConfig !== 'undefined') loginConfig = data.loginConfig;
     vueobj.user = data.user;
 
     postMessages(data.messages, data.status, data.request, data.proper, false);
@@ -322,7 +330,7 @@ function pollData(genView, table, filters) {
             if (typeof h.view === 'undefined' || h.view === '') {
                 $('#loadingScreen').hide();
                 $('#emptyRequest').show();
-            } else if ($('#loadingScreen').html() === '') {
+            } else if (h.view === table && $('#loadingScreen').html() === '') {
                 $.get({
                     url: '/html/loading.html',
                     cache: false
@@ -346,6 +354,62 @@ function pollData(genView, table, filters) {
         pollSuccess(data, table, genView);
     }).fail(function(data) {
         pollFail(table, genView);
+    });
+}
+
+function exportData(confirm, exportList) {
+    if ($('#exportPreview').length) {
+        doExport(confirm, exportList);
+    } else {
+        $.get({
+            url: '/vueelements/' + h.view + '_exp.html',
+            cache: false
+        }).done(function(html) {
+            $('#container').append(trimHTML(html));
+            doExport(confirm, exportList);
+        });
+    }
+}
+
+function doExport(confirm, exportList) {
+    var postData = { data: h };
+    postData.data.confirm = confirm ? 1: 0;
+    if (confirm) {
+        postData.data.exportList = exportList;
+    }
+    postData.action = 'export';
+
+    $.ajax({
+        url: '/',
+        type: 'POST',
+        dataType: 'json',
+        data: postData
+    }).always(function(zData) {
+        if (zData.statusText === 'abort') return false;
+              if (typeof zData.responseJSON !== 'undefined') data = zData.responseJSON;
+              else data = zData;
+              postMessages(data.messages, data.status, data.request, data.proper, false);
+    }).done(function(data) {
+        console.log(data);
+
+        var vueexp = new Vue({
+            el: '#exportPreview',
+            data: { exportPreview: {}, proper: '' },
+            methods: vueMethods
+        });
+
+        $('#loadingScreen').hide();
+        
+        vueobj[data.request] = data.results;
+        if (data.exports.length) {
+            vueexp.exportPreview = data.exports;
+            vueexp.proper = data.proper;
+        } else {
+            //TODO: error - 0 results, need response from export write
+            console.log('exports read failed');
+        }
+    }).fail(function(data) {
+        console.log(data);
     });
 }
 
@@ -386,12 +450,18 @@ $(document).on('click', '.straightHash', function () {
     window.location = buildHash(hashes, '*ALL');
 });
 
+$(document).on('click', '.export', function() {
+    exportData(false, null);
+});
+
 $(window).on('hashchange', function() {
     h = parseHash();
     handleHash();
 });
 
 $(document).ready(function() {
+    pollTables();
+
     $('#nav').append('<span id="login"></span>');
 
     vuemsg = new Vue({
@@ -412,8 +482,6 @@ $(document).ready(function() {
             }
         }
     });
-
-    pollTables();
 
     $(window).trigger('hashchange');
 });

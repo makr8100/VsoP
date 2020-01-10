@@ -27,14 +27,14 @@ function recurseMenu($menu, $buttons = false, $depth = 0) {
                 }
 
                 $icon = '';
-                if (!empty($link['icon'])) $icon = "<i class='fas {$link['icon']}'></i>";
+                if (!empty($link['icon'])) $icon = "<i class='{$link['icon']}'></i>";
 
                 if (isset($link['children'])) {
                     if ($buttons && !empty(strip_tags($childHTML))) $navHTML .= "<div><h3>{$icon}{$link['text']}</h3><div class='center'>{$childHTML}</div></div>";
                     else if (!empty(strip_tags($childHTML))) $navHTML .= "<li>{$icon}{$childHTML}{$link['text']}</li>";
                 } else {
-                    if ($buttons) $navHTML .= "<a class='button' href='{$link['uri']}'>{$icon}<div>{$link['text']}</div></a>";
-                    else $navHTML .= "<li><a class='link' href='{$link['uri']}'>{$icon}{$link['text']}</a></li>";
+                    if ($buttons && $depth !== 0) $navHTML .= "<a class='button' href='{$link['uri']}'>{$icon}<div>{$link['text']}</div></a>";
+                    else if (!$buttons) $navHTML .= "<li><a class='link' href='{$link['uri']}'>{$icon}{$link['text']}</a></li>";
                 }
             }
         }

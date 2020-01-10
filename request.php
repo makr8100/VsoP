@@ -51,7 +51,7 @@ if (isset($_REQUEST['data']['view'])) {
         default:        $permission = 'w';  break;
     }
 
-    if ($sess->authCheck($request, $permission)) {
+    if ($sess->authCheck($config['mapping'][$request]['auth'], $permission)) {
         if (isset($config['cache'][$request])) {
             $cache = new Cache();
             $data['results'] = $cache->get($request);
@@ -66,7 +66,8 @@ if (isset($_REQUEST['data']['view'])) {
 
         $pg = isset($_REQUEST['data']['pg']) ? $_REQUEST['data']['pg'] : 1;
         $pp = null;
-        if (isset($_REQUEST['data']['pp'])) $pp = intval($_REQUEST['data']['pp']);
+        if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['csv'])) $pp = null;
+        else if (isset($_REQUEST['data']['pp'])) $pp = intval($_REQUEST['data']['pp']);
         else if (isset($config['mapping'][$request]['limit'])) $pp = $config['mapping'][$request]['limit'];
 
         $data['results'] = (empty($data['status'])) ? recurseTables($config['mapping'][$request], $request, null, $pg, $pp) : false;
@@ -79,7 +80,7 @@ if (isset($_REQUEST['data']['view'])) {
         }
     }
 
-    $data['cfg'] = $config;
+//     $data['cfg'] = $config;
 }
 
 if ($action === 'export') {
@@ -87,13 +88,18 @@ if ($action === 'export') {
 }
 
 unset($data['sql']);
-http_response_code($data['status']);
-echo json_encode($data);
+
+if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml', 'csv'])) {
+    require_once __DIR__ . '/view/php/fmt.php';
+} else {
+    http_response_code($data['status']);
+    echo json_encode($data);
+}
 
 function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
     global $config; global $db; global $data; global $sess; global $request; global $permission;
 
-    if (!$sess->authCheck($request, $permission)) {
+    if (!$sess->authCheck($config['mapping'][$request]['auth'], $permission)) {
         $data['status'] = 403;
         $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
         return false;
@@ -108,7 +114,8 @@ function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
             $whereParts[] = "{$map['fk']['field']} = ?";
             $parms[] = $pfk;
         } else {
-            foreach($_REQUEST['data'] as $k => $param) {
+            foreach($_REQUEST['data'] as $k => &$param) {
+                $param = urldecode($param);
                 if (isset($map['pk']) && $map['pk']['param'] == $k && !empty($param)) {
                     $whereParts[] = $map['pk']['field'] . ' = ?';
                     $parms[] = $param;
@@ -117,6 +124,8 @@ function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
                         $fk = explode('::', $map['filters'][$k]);
                         if ($fk[0] === 'key') {
                             $whereParts[] = "? IN ($k.{$fk[1]})";
+                        } else if ($fk[0] === 'nqkey') {
+                            $whereParts[] = "? IN ({$fk[1]})";
                         } else if ($fk[0] === 'field') {
                             $whereParts[] = "? IN ($prefix.{$fk[1]})";
                         }
@@ -143,22 +152,37 @@ function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
         $limit = '';
         if (!empty($pg) && !empty($pp)) {
             $start = ($pg - 1) * $pp;
-            $limit = "LIMIT $start, $pp";
+            if (!isset($map['pageSyntax']) || $map['pageSyntax'] !== 'rownumber') $limit = "LIMIT $start, $pp";
 
             $sql = 'SELECT COUNT(*) FROM (' . str_replace('/*where*/', $where, $rawSQL) . ') AS t';
+// echo "$sql\n\n";
+error_log(json_encode($parms));
             $stmt = $db[$map['db']]->prepare($sql);
             $stmt->execute($parms);
             $data['resultCount'] = $stmt->fetchAll(PDO::FETCH_NUM)[0][0];
             $data['pp'] = $pp;
         }
 
-        $sql = str_replace('/*where*/', $where, str_replace('/*limit*/', $limit, $rawSQL));
-
+        if (!empty($pg) && !empty($pp) && isset($map['pageSyntax']) && $map['pageSyntax'] === 'rownumber') {
+            $end = $start + $pp;
+            $start ++;
+            $order = '';
+            if (isset($map['order'])) $order = $map['order'];
+            $sql = str_replace('/*order*/', $order, str_replace('/*where*/', $where, "SELECT * FROM (SELECT ROW_NUMBER() OVER(/*order*/) AS RNUM, r.* FROM ($rawSQL)AS r) AS t WHERE RNUM BETWEEN $start AND $end"));
+        } else {
+            $sql = str_replace('/*where*/', $where, str_replace('/*limit*/', $limit, $rawSQL));
+        }
+// echo "$sql\n\n";
         $stmt = $db[$map['db']]->prepare($sql);
         $stmt->execute($parms);
         $results = $stmt->fetchAll();
-        if (isset($map['children']) && (sizeof($results) === 1) || !empty($map['listWithChildren'])) {
-            foreach($results as &$result) {
+        foreach($results as &$result) {
+            if (!empty($map['requiresTrim'])) {
+                foreach($result as &$column) {
+                    $column = trim($column);
+                }
+            }
+            if (isset($map['children']) && (sizeof($results) === 1) || !empty($map['listWithChildren'])) {
                 foreach($map['children'] as $k => $child) {
                     $result[$k] = recurseTables($child, $k, $result[$map['pk']['alias']]);
                 }

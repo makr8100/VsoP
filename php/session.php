@@ -86,7 +86,7 @@ class Session {
     }
 
     public function authCheck($key, $permission) {
-        global $config;
+        global $config; global $data;
         $isAuth = (!empty($config['mapping'][$key]['noauth']) || !empty($this->user['authority'][$key][$permission]));
         if (!$isAuth) {
             $data['status'] = 403;
@@ -117,7 +117,8 @@ class Session {
         global $config;
         $this->user = [
             $config['login']['uidField'] => $config['login']['defaultUID'],
-            $config['login']['userField'] => $config['login']['defaultUsername']
+            $config['login']['userField'] => $config['login']['defaultUsername'],
+            'authority' => []
         ];
     }
 }

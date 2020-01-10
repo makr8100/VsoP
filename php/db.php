@@ -27,7 +27,7 @@ foreach ($config['db'] as $dbc) {
     ];
 
     try {
-         $db[] = (isset($pdoString) && isset($dbc['usr']) && isset($dbc['pwd'])) ? new PDO($pdoString, $dbc['usr'], $dbc['pwd'], $opts) : new PDO($pdoString);
+         $db[] = (isset($pdoString) && isset($dbc['usr']) && isset($dbc['pwd'])) ? new PDO($pdoString, $dbc['usr'], $dbc['pwd'], $opts) : new PDO($pdoString, null, null, $opts);
     } catch (\PDOException $e) {
          throw new \PDOException($e->getMessage(), (int)$e->getCode());
     }
