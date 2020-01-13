@@ -54,19 +54,15 @@ if ($_REQUEST['fmt'] === 'xml') {
     require_once $config['phplibs']['mpdf'] . '/mpdf.php';
     $mpdf = new Mpdf();
 
-    if (isset($config['mapping'][$request]['printCopies']) && is_array($config['mapping'][$request]['printCopies'])) {
+    if (isset($config['mapping'][$request]['printCopies'])) {
+        $copies = is_array($config['mapping'][$request]['printCopies']) ? $config['mapping'][$request]['printCopies'] : array_fill(0, $config['mapping'][$request]['printCopies'], '');
         //TODO: footer formatting
         $mpdf->defaultfooterfontsize = 48;
         $mpdf->defaultfooterfontstyle = 'B';
-        foreach ($config['mapping'][$request]['printCopies'] as $k => $copy) {
+        foreach ($copies as $k => $copy) {
             if ($k > 0) $mpdf->addPage();
-            $mpdf->setHTMLFooter($copy);
-            $mpdf->WriteHTML($html);
-        }
-    } else if (isset($config['mapping'][$request]['printCopies'])) {
-        for ($k = 0; $k < $config['mapping'][$request]['printCopies']; $k++) {
-            if ($k > 0) $mpdf->addPage();
-            $mpdf->setHTMLFooter($copy);
+            if (!empty($copy)) $mpdf->setHTMLFooter($copy);
+            else $mpdf->setHTMLFooter('');
             $mpdf->WriteHTML($html);
         }
     } else {
