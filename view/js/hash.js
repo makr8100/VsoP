@@ -250,7 +250,8 @@ function pollCallback(zData, genView) {
     if (zData.statusText === 'abort') return false;
     if (typeof zData.responseJSON !== 'undefined') data = zData.responseJSON;
     else data = zData;
-    if (typeof loginConfig !== 'undefined') loginConfig = data.loginConfig;
+    if (typeof data.loginConfig === 'undefined') return false;
+    loginConfig = data.loginConfig;
     vueobj.user = data.user;
 
     postMessages(data.messages, data.status, data.request, data.proper, false);
@@ -487,4 +488,14 @@ $(document).ready(function() {
     });
 
     $(window).trigger('hashchange');
+});
+
+$(document).on('keypress', function(e) {
+    switch (e.which) {
+        case 13:
+            $('.enterKey').trigger('click');
+            break;
+        default:
+            break;
+    }
 });

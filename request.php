@@ -156,7 +156,6 @@ function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
 
             $sql = 'SELECT COUNT(*) FROM (' . str_replace('/*where*/', $where, $rawSQL) . ') AS t';
 // echo "$sql\n\n";
-error_log(json_encode($parms));
             $stmt = $db[$map['db']]->prepare($sql);
             $stmt->execute($parms);
             $data['resultCount'] = $stmt->fetchAll(PDO::FETCH_NUM)[0][0];
