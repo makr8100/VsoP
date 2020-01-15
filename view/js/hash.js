@@ -326,7 +326,6 @@ function pollData(genView, table, filters) {
         dataType: 'json',
         data: { data: filters },
         beforeSend: function() {
-            vueobj[table] = {};
             if (typeof h.view === 'undefined' || h.view === '') {
                 $('#loadingScreen').hide();
                 $('#emptyRequest').show();
@@ -353,7 +352,7 @@ function pollData(genView, table, filters) {
     }).done(function(data) {
         pollSuccess(data, table, genView);
     }).fail(function(data) {
-        pollFail(table, genView);
+        if (data.statusText !== 'abort') pollFail(table, genView);
     });
 }
 
@@ -460,6 +459,10 @@ $(window).on('hashchange', function() {
 });
 
 $(document).ready(function() {
+    for (var table in tables) {
+        vueData[table] = {};
+    }
+
     pollTables();
 
     $('#nav').append('<span id="login"></span>');
