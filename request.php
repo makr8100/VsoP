@@ -81,6 +81,9 @@ if (isset($_REQUEST['data']['view'])) {
     }
 
 //     $data['cfg'] = $config;
+} else {
+    $data['status'] = 400;
+    $data['messages'][] = [ 'type' => 'error', 'message' => 'Empty Request!' ];
 }
 
 if ($action === 'export') {
@@ -89,10 +92,16 @@ if ($action === 'export') {
 
 unset($data['sql']);
 
-if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml', 'csv'])) {
+http_response_code($data['status']);
+
+if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml', 'csv']) && $data['status'] === 200) {
     require_once __DIR__ . '/view/php/fmt.php';
+} else if (isset($_REQUEST['fmt']) && $data['status'] === 403) {
+    //TODO: echo login form instead of link
+    echo "Please log in at <a href='http://hub.adamsthermal.com'>http://hub.adamsthermal.com</a>, then reload this page.  If you are already logged in and stil cannot view please check with IT for permissions to view.";
+} else if (isset($_REQUEST['fmt'])) {
+    echo "ERROR {$data['status']}: {$data['messages'][0]['message']}";
 } else {
-    http_response_code($data['status']);
     echo json_encode($data);
 }
 
