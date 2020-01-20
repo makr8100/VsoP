@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * fmt.php - output formatter
+ *
+ * @author       Mark Gullings <makr8100@gmail.com>
+ * @copyright    2020-01-17
+ * @package      VsoP
+ * @name         fmt.php
+ * @since        2020-01-10
+ * @version      0.15
+ * @license      MIT
+ */
+
 if (in_array($_REQUEST['fmt'], ['html', 'pdf'])) {
     $css = file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/../pdf/css/pdf.css');
     $content = mergeData(file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/vueelements/$request.html"), $data['results'], $request);

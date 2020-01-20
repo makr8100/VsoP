@@ -4,11 +4,11 @@
  * request.php - AJAX handler
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-12-16
+ * @copyright    2020-01-17
  * @package      VsoP
  * @name         request.php
  * @since        2019-06-24
- * @version      0.14
+ * @version      0.15
  * @license      MIT
  */
 
@@ -81,7 +81,7 @@ if (isset($_REQUEST['data']['view'])) {
     }
 
 //     $data['cfg'] = $config;
-} else {
+} else if ($action === 'view') {
     $data['status'] = 400;
     $data['messages'][] = [ 'type' => 'error', 'message' => 'Empty Request!' ];
 }
@@ -98,7 +98,7 @@ if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml',
     require_once __DIR__ . '/view/php/fmt.php';
 } else if (isset($_REQUEST['fmt']) && $data['status'] === 403) {
     //TODO: echo login form instead of link
-    echo "Please log in at <a href='http://hub.adamsthermal.com'>http://hub.adamsthermal.com</a>, then reload this page.  If you are already logged in and stil cannot view please check with IT for permissions to view.";
+    echo "Please log in at <a href='//{$_SERVER['SERVER_NAME']}'>{$_SERVER['SERVER_NAME']}</a>, then reload this page.  If you are already logged in and stil cannot view please check with IT for permissions to view.";
 } else if (isset($_REQUEST['fmt'])) {
     echo "ERROR {$data['status']}: {$data['messages'][0]['message']}";
 } else {

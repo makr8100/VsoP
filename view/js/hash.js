@@ -2,11 +2,11 @@
  * hash.js - parse HTML hash and convert to JavaScript object, then send AJAX request
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-12-16
+ * @copyright    2020-01-15
  * @package      VsoP
  * @name         hash.js
  * @since        2019-06-24
- * @version      0.14
+ * @version      0.15
  * @license      MIT
  */
 
