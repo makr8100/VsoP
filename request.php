@@ -156,6 +156,12 @@ function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
 
         if (!empty($whereParts)) $where = "WHERE " . implode(' AND ', $whereParts);
 
+        if (isset($map['charConversion'])) {
+            foreach ($parms as &$parm) {
+                $parm = mb_convert_encoding($parm, $exportMap['charConversion']);
+            }
+        }
+
         $rawSQL = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$map['table']}.sql");
 
         $limit = '';
