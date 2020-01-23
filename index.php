@@ -14,7 +14,7 @@
 
 require_once __DIR__ . '/php/autoLoader.php';
 if (isset($config['timezone'])) date_default_timezone_set($config['timezone']);
-$sess = new Session();
+$sess = new Session($config, $db, $data);
 
 require_once __DIR__ . '/view/php/htmlHeader.php';
 require_once __DIR__ . '/view/php/htmlBody.php';

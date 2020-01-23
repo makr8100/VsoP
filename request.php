@@ -21,14 +21,14 @@ $data = [
 
 require_once __DIR__ . '/php/autoLoader.php';
 if (isset($config['timezone'])) date_default_timezone_set($config['timezone']);
-$sess = new Session();
+$sess = new Session($config, $db, $data);
 
 $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : 'view';
 
 if ($action === 'login') {
-    $sess->doLogin($_REQUEST['usr'], $_REQUEST['pwd']);
+    $sess->doLogin($db, $config, $data, $_REQUEST['usr'], $_REQUEST['pwd']);
 } else if ($action === 'logout') {
-    $sess->doLogout();
+    $sess->doLogout($config, $data);
 }
 
 if (!empty($sess->user)) {
@@ -51,7 +51,7 @@ if (isset($_REQUEST['data']['view'])) {
         default:        $permission = 'w';  break;
     }
 
-    if ($sess->authCheck($config['mapping'][$request]['auth'], $permission)) {
+    if ($sess->authCheck($config, $data, $config['mapping'][$request]['auth'], $permission)) {
         if (isset($config['cache'][$request])) {
             $cache = new Cache();
             $data['results'] = $cache->get($request);
@@ -70,7 +70,7 @@ if (isset($_REQUEST['data']['view'])) {
         else if (isset($_REQUEST['data']['pp'])) $pp = intval($_REQUEST['data']['pp']);
         else if (isset($config['mapping'][$request]['limit'])) $pp = $config['mapping'][$request]['limit'];
 
-        $data['results'] = (empty($data['status'])) ? recurseTables($config['mapping'][$request], $request, null, $pg, $pp) : false;
+        $data['results'] = (empty($data['status'])) ? recurseTables($config, $db, $sess, $request, $permission, $data, $config['mapping'][$request], $request, null, $pg, $pp) : false;
 
         if (!empty($data['results'])) {
             if (isset($cache)) {
@@ -87,7 +87,7 @@ if (isset($_REQUEST['data']['view'])) {
 }
 
 if ($action === 'export') {
-    require_once($_SERVER['DOCUMENT_ROOT'] . '/../php/export.php');
+    require_once(__DIR__ . '/export.php');
 }
 
 unset($data['sql']);
@@ -105,10 +105,8 @@ if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml',
     echo json_encode($data);
 }
 
-function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
-    global $config; global $db; global $data; global $sess; global $request; global $permission;
-
-    if (!$sess->authCheck($config['mapping'][$request]['auth'], $permission)) {
+function recurseTables($config, $db, $sess, $request, $permission, &$data, $map, $prefix, $pfk = null, $pg = null, $pp = null) {
+    if (!$sess->authCheck($config, $data, $config['mapping'][$request]['auth'], $permission)) {
         $data['status'] = 403;
         $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
         return false;
@@ -198,7 +196,7 @@ function recurseTables($map, $prefix, $pfk = null, $pg = null, $pp = null) {
             }
             if (isset($map['children']) && (sizeof($results) === 1) || !empty($map['listWithChildren'])) {
                 foreach($map['children'] as $k => $child) {
-                    $result[$k] = recurseTables($child, $k, $result[$map['pk']['alias']]);
+                    $result[$k] = recurseTables($config, $db, $sess, $request, $permission, $data, $child, $k, $result[$map['pk']['alias']]);
                 }
             }
         }

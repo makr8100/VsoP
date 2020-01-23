@@ -14,8 +14,7 @@
 
 //TODO: vue for nav menu
 
-function recurseMenu($menu, $buttons = false, $depth = 0) {
-    global $sess;
+function recurseMenu($sess, $menu, $buttons = false, $depth = 0) {
     if ($buttons && empty($depth)) $navHTML = '<div>';
     else if ($buttons) $navHTML = '<div class="topBorder">';
     else $navHTML = '<ul>';
@@ -23,7 +22,7 @@ function recurseMenu($menu, $buttons = false, $depth = 0) {
         foreach($menu as $link) {
             if (!isset($link['authority']) || !empty($sess->user['authority'][$link['authority']])) {
                 if (isset($link['children'])) {
-                    $childHTML = recurseMenu($link['children'], $buttons, $depth + 1);
+                    $childHTML = recurseMenu($sess, $link['children'], $buttons, $depth + 1);
                 }
 
                 $icon = '';
@@ -45,4 +44,4 @@ function recurseMenu($menu, $buttons = false, $depth = 0) {
     return $navHTML;
 }
 
-echo '<div id="nav">' . recurseMenu($config['navigation']) . '</div>';
+echo '<div id="nav">' . recurseMenu($sess, $config['navigation']) . '</div>';

@@ -13,16 +13,14 @@
  *
  * @source { // SAMPLE USAGE:
  *     $session = new Session();
- *     $user['id'] = $session->doLogin('myUser', 'myPassword');
+ *     $user['id'] = $session->doLogin($db, $config, $data, 'myUser', 'myPassword');
  * }
  */
 
 class Session {
     public $user;
 
-    public function __construct() {
-        global $config; global $data;
-
+    public function __construct(&$config, $db, &$data) {
         $data['loginConfig']['uidField'] = $config['login']['uidField'];
         $data['loginConfig']['userField'] = $config['login']['userField'];
         $data['loginConfig']['requireLogin'] = $config['login']['requireLogin'];
@@ -31,19 +29,16 @@ class Session {
 
         session_start();
         $this->user = &$_SESSION['user'];
-        if (!isset($this->user)) $this->goAnon();
-        else $this->user['authority'] = $this->getUserAuthority();
+        if (!isset($this->user)) $this->goAnon($config);
+        else $this->user['authority'] = $this->getUserAuthority($db, $config);
     }
 
-    public function doLogout() {
-        global $data;
-        $this->goAnon();
+    public function doLogout($config, &$data) {
+        $this->goAnon($config);
         $data['status'] = 200;
     }
 
-    public function doLogin($user, $password) {
-        global $db; global $config; global $data;
-
+    public function doLogin($db, &$config, &$data, $user, $password) {
         $data['user'] = &$this->user;
         $conditions = '';
         if (!empty($config['login']['conditions'])) {
@@ -59,12 +54,12 @@ class Session {
 
         switch (sizeof($usrData) <=> 1) {
             case 1:
-                $this->goAnon();
+                $this->goAnon($config);
                 $data['status'] = 401;
                 $data['messages'][] = [ 'type' => 'error', 'message' => 'Ambiguous User!' ];
                 break;
             case -1:
-                $this->goAnon();
+                $this->goAnon($config);
                 $data['status'] = 401;
                 $data['messages'][] = [ 'type' => 'error', 'message' => 'User Not Found!' ];
                 break;
@@ -72,11 +67,11 @@ class Session {
                 if ($this->verifyPassword($usrData[0], $config['login'], $password)) {
                     $this->user = $usrData[0];
                     if (isset($config['login']['authority'])) {
-                        $this->user['authority'] = $this->getUserAuthority();
+                        $this->user['authority'] = $this->getUserAuthority($db, $config);
                     }
                     $data['status'] = 200;
                 } else {
-                    $this->goAnon();
+                    $this->goAnon($config);
                     $data['status'] = 401;
                     $data['messages'][] = [ 'type' => 'error', 'message' => 'Incorrect Password!' ];
                 }
@@ -85,8 +80,7 @@ class Session {
         }
     }
 
-    public function authCheck($key, $permission) {
-        global $config; global $data;
+    public function authCheck($config, &$data, $key, $permission) {
         $isAuth = (!empty($config['mapping'][$key]['noauth']) || !empty($this->user['authority'][$key][$permission]));
         if (!$isAuth) {
             $data['status'] = 403;
@@ -102,8 +96,7 @@ class Session {
         return $result;
     }
 
-    private function getUserAuthority() {
-        global $db; global $config;
+    private function getUserAuthority($db, $config) {
         $stmt = $db[$config['login']['db']]->prepare($config['login']['authority']['sql']);
         $parms = [];
         foreach ($config['login']['authority']['parms'] as $parm) {
@@ -113,8 +106,7 @@ class Session {
         return $stmt->fetchAll(PDO::FETCH_UNIQUE);
     }
 
-    private function goAnon() {
-        global $config;
+    private function goAnon($config) {
         $this->user = [
             $config['login']['uidField'] => $config['login']['defaultUID'],
             $config['login']['userField'] => $config['login']['defaultUsername'],

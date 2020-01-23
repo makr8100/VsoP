@@ -14,7 +14,7 @@
 
 if (in_array($_REQUEST['fmt'], ['html', 'pdf'])) {
     $css = file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/../pdf/css/pdf.css');
-    $content = mergeData(file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/vueelements/$request.html"), $data['results'], $request);
+    $content = mergeData($selfClosingTags, $htmlLoopRegex, file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/vueelements/$request.html"), $data['results'], $request);
 
 $html = <<<HTML
 <!DOCTYPE html><html><head><style>
@@ -91,8 +91,7 @@ if ($_REQUEST['fmt'] === 'xml') {
     echo $html;
 }
 
-function mergeData($html, $data, $request) {
-    global $selfClosingTags; global $htmlLoopRegex;
+function mergeData($selfClosingTags, $htmlLoopRegex, $html, $data, $request) {
     $html = trim(preg_replace('/\>\s+\</', '><', $html));
     preg_match_all('/<.*?>[^<]{0,}/', $html, $tags);
     $tags = $tags[0];
@@ -115,7 +114,7 @@ function mergeData($html, $data, $request) {
                     if ($data !== null) {
                         foreach ($data as $p => $row) {
                             foreach ($row as $dkey => $field) {
-                                if ($l['container'] === $dkey) $html = str_replace(innerHTML($l['html']), mergeData(innerHTML($l['html']), $field, $request), $html);
+                                if ($l['container'] === $dkey) $html = str_replace(innerHTML($l['html']), mergeData($selfClosingTags, $htmlLoopRegex, innerHTML($l['html']), $field, $request), $html);
                             }
                         }
                     }

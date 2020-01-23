@@ -34,12 +34,12 @@ class Cache {
     */
     public function save($data, $name, $timeout) {
         // delete cache
-        $id = shmop_open($this->getID($name), "a", 0, 0);
+        $id = shmop_open($this->getID($config, $name), "a", 0, 0);
         shmop_delete($id);
         shmop_close($id);
 
         // get id for name of cache
-        $id = shmop_open($this->getID($name), "c", 0644, strlen(serialize($data)));
+        $id = shmop_open($this->getID($config, $name), "c", 0644, strlen(serialize($data)));
 
         // return int for data size or boolean false for fail
         if ($id) {
@@ -55,7 +55,7 @@ class Cache {
     */
     public function get($name) {
         if (!$this->checkTimeout($name)) {
-            $id = shmop_open($this->getID($name), "a", 0, 0);
+            $id = shmop_open($this->getID($config, $name), "a", 0, 0);
 
             if ($id) $data = unserialize(shmop_read($id, 0, shmop_size($id)));
             else return false;          // failed to load data
@@ -72,8 +72,7 @@ class Cache {
     * @param string $name // name of item to get ID for
     * @return integer // ID for use with native PHP shmop functions
     */
-    private function getID($name) {
-        global $config;
+    private function getID($config, $name) {
         return $config['cache'][$name]['id'];
     }
 
