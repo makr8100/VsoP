@@ -121,11 +121,13 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
             $whereParts[] = "{$map['fk']['field']} = ?";
             $parms[] = $pfk;
         } else {
-            foreach($_REQUEST['data'] as $k => &$param) {
-                $param = urldecode($param);
-                if (isset($map['pk']) && $map['pk']['param'] == $k && !empty($param)) {
+            foreach($_REQUEST['data'] as $k => &$parm) {
+                if (isset($map['charConversion'])) {
+                    $parm = mb_convert_encoding($parm, $exportMap['charConversion']);
+                }
+                if (isset($map['pk']) && $map['pk']['param'] == $k && !empty($parm)) {
                     $whereParts[] = $map['pk']['field'] . ' = ?';
-                    $parms[] = $param;
+                    $parms[] = $parm;
                 } else if (isset($map['filters'][$k])) {
                     if (!is_array($map['filters'][$k]) && sizeof(explode('::', $map['filters'][$k])) == 2) {
                         $fk = explode('::', $map['filters'][$k]);
@@ -136,12 +138,12 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
                         } else if ($fk[0] === 'field') {
                             $whereParts[] = "? IN ($prefix.{$fk[1]})";
                         }
-                        $parms[] = $param;
+                        $parms[] = $parm;
                     } else if (!is_array($map['filters'][$k]) && strpos($map['filters'][$k], '?')) {
                         $whereParts[] = $map['filters'][$k];
-                        $parms[] = $param;
-                    } else if (!empty($map['filters'][$k][$param])) {
-                        $whereParts[] = $map['filters'][$k][$param];
+                        $parms[] = $parm;
+                    } else if (!empty($map['filters'][$k][$parm])) {
+                        $whereParts[] = $map['filters'][$k][$parm];
                     } else {
                         $whereParts[] = '1 = 1';
                     }
