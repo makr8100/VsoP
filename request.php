@@ -102,7 +102,7 @@ if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml',
 } else if (isset($_REQUEST['fmt'])) {
     echo "ERROR {$data['status']}: {$data['messages'][0]['message']}";
 } else {
-    echo json_encode($data);
+    echo json_encode($data, !empty($_REQUEST['tidy']) ? JSON_PRETTY_PRINT : null);
 }
 
 function recurseTables($config, $db, $sess, $request, $permission, &$data, $map, $prefix, $pfk = null, $pg = null, $pp = null) {
@@ -117,17 +117,19 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
         $whereParts = [];
         if (isset($map['filters']['always'])) $whereParts = ["({$map['filters']['always']})"];
         $parms = [];
+        $getKey = false;
         if (!empty($map['fk']) && !empty($pfk)) {
             $whereParts[] = "{$map['fk']['field']} = ?";
             $parms[] = $pfk;
         } else {
             foreach($_REQUEST['data'] as $k => &$parm) {
                 if (isset($map['charConversion'])) {
-                    $parm = mb_convert_encoding($parm, $exportMap['charConversion']);
+                    $parm = mb_convert_encoding($parm, $map['charConversion']);
                 }
                 if (isset($map['pk']) && $map['pk']['param'] == $k && !empty($parm)) {
                     $whereParts[] = $map['pk']['field'] . ' = ?';
                     $parms[] = $parm;
+                    $getKey = true;
                 } else if (isset($map['filters'][$k])) {
                     if (!is_array($map['filters'][$k]) && sizeof(explode('::', $map['filters'][$k])) == 2) {
                         $fk = explode('::', $map['filters'][$k]);
@@ -137,6 +139,14 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
                             $whereParts[] = "? IN ({$fk[1]})";
                         } else if ($fk[0] === 'field') {
                             $whereParts[] = "? IN ($prefix.{$fk[1]})";
+                        } else if ($fk[0] === 'date') {
+                            $dte = DateTime::createFromFormat('Y-m-d', $parm);
+                            $whereParts[] = $fk[2];
+                            $parm = $dte->format($fk[1]);
+                        } else if ($fk[0] === 'dateint') {
+                            $dte = DateTime::createFromFormat('Y-m-d', $parm);
+                            $whereParts[] = $fk[2];
+                            $parm = intval($dte->format($fk[1]));
                         }
                         $parms[] = $parm;
                     } else if (!is_array($map['filters'][$k]) && strpos($map['filters'][$k], '?')) {
@@ -145,10 +155,13 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
                     } else if (!empty($map['filters'][$k][$parm])) {
                         $whereParts[] = $map['filters'][$k][$parm];
                     } else {
+                        //TODO: necessary?
                         $whereParts[] = '1 = 1';
                     }
                 }
             }
+
+            //TODO: make default an object, foreach it, and set each filter conditionally
             if (empty($whereParts) && isset($map['filters']['default'])) {
                 $whereParts[] = $map['filters'][$map['filters']['default'][0]][$map['filters']['default'][1]];
             }
@@ -158,14 +171,14 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
 
         if (isset($map['charConversion'])) {
             foreach ($parms as &$parm) {
-                $parm = mb_convert_encoding($parm, $exportMap['charConversion']);
+                $parm = mb_convert_encoding($parm, $map['charConversion']);
             }
         }
 
         $rawSQL = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$map['table']}.sql");
 
         $limit = '';
-        if (!empty($pg) && !empty($pp)) {
+        if (!$getKey && !empty($pg) && !empty($pp)) {
             $start = ($pg - 1) * $pp;
             if (!isset($map['pageSyntax']) || $map['pageSyntax'] !== 'rownumber') $limit = "LIMIT $start, $pp";
 
@@ -177,12 +190,12 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
             $data['pp'] = $pp;
         }
 
-        if (!empty($pg) && !empty($pp) && isset($map['pageSyntax']) && $map['pageSyntax'] === 'rownumber') {
+        if (!$getKey && !empty($pg) && !empty($pp) && isset($map['pageSyntax']) && $map['pageSyntax'] === 'rownumber') {
             $end = $start + $pp;
             $start ++;
             $order = '';
             if (isset($map['order'])) $order = $map['order'];
-            $sql = str_replace('/*order*/', $order, str_replace('/*where*/', $where, "SELECT * FROM (SELECT ROW_NUMBER() OVER(/*order*/) AS RNUM, r.* FROM ($rawSQL)AS r) AS t WHERE RNUM BETWEEN $start AND $end"));
+            $sql = str_replace('/*order*/', $order, str_replace('/*where*/', $where, "SELECT * FROM (SELECT ROW_NUMBER() OVER(/*order*/) AS RNUM, r.* FROM ($rawSQL) AS r) AS t WHERE RNUM BETWEEN $start AND $end"));
         } else {
             $sql = str_replace('/*where*/', $where, str_replace('/*limit*/', $limit, $rawSQL));
         }
@@ -191,9 +204,28 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
         $stmt->execute($parms);
         $results = $stmt->fetchAll();
         foreach($results as &$result) {
-            if (!empty($map['requiresTrim'])) {
-                foreach($result as &$column) {
-                    $column = trim($column);
+            if (!empty($map['requiresTrim']) || isset($map['charConversion'])) {
+                foreach($result as $k => &$column) {
+                    // if (isset($map['charConversion'])) $column = mb_convert_encoding($column, 'utf-8', $map['charConversion']);
+                    if (isset($map['charConversion'])) $column = iconv($map['charConversion'], 'utf-8', $column);
+                    if (!empty($map['requiresTrim'])) $column = trim($column);
+                    if (!empty($map['formatFields']) && !empty($map['formatFields'][$k])) {
+                        $fmt = explode('::', $map['formatFields'][$k]);
+                        if ($fmt[0] === 'date') {
+                            $dte = DateTime::createFromFormat($map['dateFormat'], $column);
+                            $result[$k . '_fmt'] = date($fmt[1], intval($dte->format('U')));
+                        }
+                    }
+                }
+            }
+            if (isset($map['extInfo'])) {
+                foreach($map['extInfo'] as $k => $ext) {
+                    $extInfo = recurseTables($config, $db, $sess, $request, $permission, $data, $ext, $k, $result[$map['pk']['alias']]);
+                    if (!empty($extInfo)) {
+                        foreach($extInfo[0] as $key => $col) {
+                            $result[$key] = $col;
+                        }
+                    }
                 }
             }
             if (isset($map['children']) && (sizeof($results) === 1) || !empty($map['listWithChildren'])) {
@@ -207,7 +239,9 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
         $data['sql'][] = $sql;
     } else if ($map['type'] == 'file') {
         $parser = new FileParser($map['file'], $map['input']);
-        $data['results'] = $parser->output($map['output']);
+        $results = $parser->output($map['output']);
+    } else if ($map['type'] == 'json') {
+        $results = $map['data'];
     } else {
         $data['status'] = 404;
         $data['messages'][] = [ 'type' => 'error', 'message' => 'Routing Not Found!' ];

@@ -12,17 +12,17 @@
  * @license      MIT
  */
 
-//TODO: vue for nav menu
+//TODO: vue for nav menu, buttons on content pane
 
-function recurseMenu($sess, $menu, $buttons = false, $depth = 0) {
+function recurseMenu($config, $sess, $menu, $buttons = false, $depth = 0) {
     if ($buttons && empty($depth)) $navHTML = '<div>';
     else if ($buttons) $navHTML = '<div class="topBorder">';
     else $navHTML = '<ul>';
     if (is_array($menu)) {
         foreach($menu as $link) {
-            if (!isset($link['authority']) || !empty($sess->user['authority'][$link['authority']])) {
+            if (!isset($link['authority']) || !empty($sess->authCheck($config, $data, $link['authority'], 'r', false))) {
                 if (isset($link['children'])) {
-                    $childHTML = recurseMenu($sess, $link['children'], $buttons, $depth + 1);
+                    $childHTML = recurseMenu($config, $sess, $link['children'], $buttons, $depth + 1);
                 }
 
                 $icon = '';
@@ -44,4 +44,4 @@ function recurseMenu($sess, $menu, $buttons = false, $depth = 0) {
     return $navHTML;
 }
 
-echo '<div id="nav">' . recurseMenu($sess, $config['navigation']) . '</div>';
+echo '<div id="nav">' . recurseMenu($config, $sess, $config['navigation']) . '</div>';

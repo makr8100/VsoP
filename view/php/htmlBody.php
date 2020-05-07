@@ -17,7 +17,7 @@
 require_once __DIR__ . '/htmlNavMenu.php';
 
 // echo '<div id="loadingScreen" class="pageCenter"></div><div id="emptyRequest" class="fullCenter"><i class="fas fa-question-circle"></i><div>Welcome!  Please make a selection.</div></div><div id="container">';
-echo '<div id="loadingScreen" class="pageCenter"></div><div id="emptyRequest"><div>' . recurseMenu($sess, $config['navigation'], true) . '</div></div><div id="container">';
+echo '<div id="loadingScreen" class="pageCenter"></div><div id="emptyRequest"><div>' . recurseMenu($config, $sess, $config['navigation'], true) . '</div></div><div id="container">';
 
 $htmlDir = $_SERVER['DOCUMENT_ROOT'] . '/../vueelements';
 $htmlIncludes = folderLoader($htmlDir);

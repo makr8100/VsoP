@@ -16,12 +16,12 @@ if (in_array($_REQUEST['fmt'], ['html', 'pdf'])) {
     $css = file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/../pdf/css/pdf.css');
     $content = mergeData($selfClosingTags, $htmlLoopRegex, file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/vueelements/$request.html"), $data['results'], $request);
 
-$html = <<<HTML
+$html = "
 <!DOCTYPE html><html><head><style>
 $css
 </style></head><body>
 {$config['company']['letterhead']}
-<div id="content">
+<div id=\"content\">
 
 $content
 
@@ -29,7 +29,8 @@ $content
 
 </body></html>
 
-HTML;
+";
+
 }
 
 if ($_REQUEST['fmt'] === 'xml') {
@@ -93,33 +94,42 @@ if ($_REQUEST['fmt'] === 'xml') {
 
 function mergeData($selfClosingTags, $htmlLoopRegex, $html, $data, $request) {
     $html = trim(preg_replace('/\>\s+\</', '><', $html));
+    $html = preg_replace('/((?<=\<)|(?<=\<\/))select.*?[^\s|>]{0,}/', 'span', $html);
+    $html = preg_replace('/\<option.*?\>.*?\<\/option.*?\>/', '', $html);
     preg_match_all('/<.*?>[^<]{0,}/', $html, $tags);
     $tags = $tags[0];
     $deep = 0;
     $loops = [];
-    $childhtml = [];
-    foreach($tags as $tag) {
+    foreach($tags as &$tag) {
+        preg_match('/(?<=v-bind:value=")\S*(?=")/', $tag, $bindFields);
+        if (!empty($bindFields)) {
+            $newTag = "<span>{{ {$bindFields[0]} }}</span>";
+            $html = str_replace($tag, $newTag, $html);
+            $tag = $newTag;
+        }
         $loop = false;
-        preg_match("/(?<=\<)\/?.*?[^\s|>]{0,}/", $tag, $short);
+        preg_match('/(?<=\<)\/?.*?[^\s|>]{0,}/', $tag, $short);
         $short = strtolower($short[0]);
         foreach($loops as &$l) {
             $l['html'] .= $tag;
         }
-	    if (substr($short, 0, 1) === '/') {
+        if (substr($short, 0, 1) === '/') {
             foreach($loops as &$l) {
                 if ($deep === $l['depth'] && "/{$l['tag']}" === $short) {
                     $key = "{$l['self']}.";
                     if (!empty($l['parent'])) $key .= "{$l['parent']}.";
                     $key .= "{$l['container']}";
                     if ($data !== null) {
-                        foreach ($data as $p => $row) {
+                        $newHTML = [];
+                        foreach ($data as $p => &$row) {
                             foreach ($row as $dkey => $field) {
-                                if ($l['container'] === $dkey) $html = str_replace(innerHTML($l['html']), mergeData($selfClosingTags, $htmlLoopRegex, innerHTML($l['html']), $field, $request), $html);
+                                if ($l['container'] === $dkey) {
+                                    $row[$dkey . 'html'] = mergeData($selfClosingTags, $htmlLoopRegex, innerHTML($l['html']), $field, $request);
+                                    $html = str_replace(innerHTML($l['html']), "{{ {$l['parent']}.{$dkey}html }}", $html);
+                                }
                             }
                         }
                     }
-                    //echo "end $key\n";
-                    //echo $html . "\n\n";
                     unset($loops[$key]);
                 }
             }
@@ -145,19 +155,37 @@ function mergeData($selfClosingTags, $htmlLoopRegex, $html, $data, $request) {
                 //echo "begin " . implode('.', $eval) . "\n";
             }
         }
-        //echo "$deep" . str_repeat("    ", $deep) . "$tag\n";
-        if (substr($short, 0, 1) === '/' || in_array($short, $selfClosingTags)) $deep -= 1;
+        // echo "$deep" . str_repeat("    ", $deep) . "$tag\n";
+        if (substr($short, 0, 1) === '/' || in_array($short, $selfClosingTags) || !empty($bindFields)) $deep -= 1;
     }
 
     $return = '';
     preg_match_all('/(?<={{\s).{1,}(?=\s}})/U', $html, $replaces);
     $replaces = $replaces[0];
-    foreach($data as $row) {
+    preg_match_all('/(?<={{\s)Number\(.*\)\.toFixed\(\d\)(?=\s}})/U', $html, $calcReplaces);
+    $calcReplaces = $calcReplaces[0];
+    foreach($data as &$row) {
         $tmp = $html;
         foreach ($replaces as $ev) {
-            $eval = explode('.', $ev);
-            $replace = "{{ $ev }}";
-            $tmp = str_replace($replace, $row[$eval[1]], $tmp);
+            $eval = [];
+            if (in_array($ev, $calcReplaces)) {
+                preg_match('/(?<=Number\().*(?=\)\.toFixed\(\d\))/U', $ev, $fMatch);
+                preg_match("/(?<=Number\({$fMatch[0]}\)\.toFixed\()\d(?=\))/U", $ev, $precision);
+                $precision = (int)$precision[0];
+                $eval = explode('.', $fMatch[0]);
+                $row[$eval[1]] = round($row[$eval[1]], $precision);
+                if ($precision > 0 && strpos($row[$eval[1]], '.') === false) $row[$eval[1]] .= '.';
+                while (strpos($row[$eval[1]], '.') !== false && strlen(explode('.', $row[$eval[1]])[1]) < $precision) {
+                    $row[$eval[1]] .= '0';
+                }
+                
+            } else {
+                $eval = explode('.', $ev);
+            }
+            if (sizeof($eval) === 2) {
+                $replace = "{{ $ev }}";
+                $tmp = str_replace($replace, $row[$eval[1]] ?? '', $tmp);
+            }
         }
         $return .= $tmp;
     }
@@ -165,8 +193,7 @@ function mergeData($selfClosingTags, $htmlLoopRegex, $html, $data, $request) {
 }
 
 function innerHTML($html) {
-    $t = explode('><', $html);
-    unset($t[sizeof($t) - 1]);
-    unset($t[0]);
-    return '<' . implode('><', $t) . '>';
+    preg_match_all('/<.*?>/', $html, $tags);
+    $tags = $tags[0];
+    return substr(substr($html, 0, strlen($html) - (strlen($tags[sizeof($tags) - 1]))), strlen($tags[0]));
 }

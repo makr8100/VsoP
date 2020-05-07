@@ -20,7 +20,7 @@ var filterTimeout = null;
 
 const vueMethods = {
     h: function(check) {
-        return typeof h[check] !== 'undefined' ? h[check] : false;
+        return typeof h[check] !== 'undefined' ? h[check] : (check === 'pg' ? 1 : false);
     },
     back: function(param) {
         window.history.back();
@@ -29,13 +29,30 @@ const vueMethods = {
             vueMethods.clearParam(param, true);
         };
     },
-    edit: function(view, param, key) {
+    edit: function(view, key, param) {
+        console.log(arguments);
         var params = {
             view: view,
             action: 'edit'
         };
-        params[param] = key;
+        params[key] = param;
         window.location = buildHash(params);
+    },
+    add: function(view, key, param, child, ckey, defOpts) {
+        console.log(arguments);
+        if ($('#' + view + ' .modalOnly .toggleCollapse[data-collapse-id="new"]').length) {
+            postMessages([{ type: 'warn', message: 'ONE AT A TIME BUDDY!' }], null, null, 'Oops!', false);
+            return false;
+        }
+        var newObj = {}
+        for (var i in this[view][0][child][0]) {
+            if (i === ckey) newObj[i] = 'new';
+            else newObj[i] = null;
+        }
+        newObj[defOpts] = this[defOpts];
+        this[view][0][child].unshift(newObj);
+        //TODO: just expand, don't trigger click - clicks all and is wonky
+        $('#' + view + ' .modalOnly .toggleCollapse:first').trigger('click');
     },
     checkEdit: function() {
         return (this.h('action') === 'edit');
@@ -50,7 +67,12 @@ const vueMethods = {
         }
     },
     clearParam: function(param, destroyPop) {
-        $('#' + param).val('').trigger('input');
+        if ($('#' + param).attr('type') === 'checkbox') {
+            $('#' + param).prop('checked', false).trigger('input');
+        } else {
+            $('#' + param).val('').trigger('input');
+        }
+
         if (typeof destroyPop !== 'undefined' && destroyPop) window.onpopstate = null;
     },
     nextPage: function() {
@@ -282,9 +304,9 @@ function pollSuccess(data, key, genView) {
 
     $('.filterBar').find('input, select').each(function() {
         var k = $(this).attr('id');
-        if (typeof h[k] !== 'undefined' && $(this).attr('type') === 'checkbox') {
-            if (h[k] === 'on') $(this).prop('checked', true);
-            else $(this).prop('checked', false);
+        if ($(this).attr('type') === 'checkbox') {
+            if (typeof h[k] === 'undefined' || h[k] !== 'on') $(this).prop('checked', false);
+            else $(this).prop('checked', true);
         } else if (typeof h[k] !== 'undefined') {
             $(this).val(h[k]);
         } else if ($(this)[0].tagName === 'SELECT') {
@@ -415,7 +437,8 @@ function doExport(confirm, exportList) {
 
 $(document).on('change input', '.filterBar input, .filterBar select', function() {
     var el = $(this);
-    setTimeout(function() { triggerFilter(el); }, 1000);
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(function() { triggerFilter(el); }, 1000);
 });
 
 function triggerFilter(el) {
@@ -442,6 +465,11 @@ $(document).on('click', '.viewOverlay', function() {
     window.location = buildHash(null, ['id']);
 });
 
+$(document).on('click', '#filterToggle', function() {
+    if ($('.filterBar').is(':visible')) $('.filterBar').hide();
+    else $('.filterBar').show();
+});
+
 $(document).on('click', '.straightHash', function () {
     var hashes = {};
     for (var i in $(this).data()) {
@@ -452,6 +480,22 @@ $(document).on('click', '.straightHash', function () {
 
 $(document).on('click', '.export', function() {
     exportData(false, null);
+});
+
+$(document).on('click', '.toggleCollapse', function() {
+    $(this).parent().find('.collapse[data-collapse-id="' + $(this).attr('data-collapse-id') + '"]').toggleClass('collapsed');
+    $(this).find('.close > i').attr('class',
+        $(this).parent().find('.collapse[data-collapse-id="' + $(this).attr('data-collapse-id') + '"]').hasClass('collapsed') ? 'fas fa-chevron-down' : 'fas fa-chevron-up');
+});
+
+$(document).on('click','.changeState', function() {
+    var el = $(this);
+    var state = vueobj[h.view][el.attr('data-id')][el.attr('data-set')][el.attr('data-idx')][el.attr('data-line')][el.attr('data-lidx')][el.attr('data-state')];
+    if (typeof state !== 'number') state = 0;
+    if (state >= el.attr('data-maxstate')) state = -1;
+    state ++;
+    console.log(state);
+    vueobj[h.view][el.attr('data-id')][el.attr('data-set')][el.attr('data-idx')][el.attr('data-line')][el.attr('data-lidx')][el.attr('data-state')] = state;
 });
 
 $(window).on('hashchange', function() {
@@ -466,7 +510,7 @@ $(document).ready(function() {
 
     pollTables();
 
-    $('#nav').append('<span id="login"></span>');
+    $('#nav').append('<span id="login"></span><span id="filterToggle"><i class="fas fa-filter"></i></span>');
 
     vuemsg = new Vue({
         el: '#notificationContainer',
@@ -490,12 +534,137 @@ $(document).ready(function() {
     $(window).trigger('hashchange');
 });
 
-$(document).on('keypress', function(e) {
+$(document).on('keydown', function(e) {
+    if ([192].indexOf(e.which) > -1) {
+        e.preventDefault();
+    }
+});
+
+$(document).on('keyup', function(e) {
     switch (e.which) {
-        case 13:
+        case 13: // enter
+            e.preventDefault();
             $('.enterKey').trigger('click');
             break;
+        case 38: // up
+            if ($('#cmd').is(':focus')) {
+                e.preventDefault();
+                var hist = {};
+                var mode = $('#cmd').attr('data-mode');
+                if (typeof Storage === 'function') {
+                    if (typeof localStorage.cmdHist !== 'undefined' && localStorage.cmdHist !== '') hist = JSON.parse(localStorage.getItem('cmdHist'));
+                } else {
+                }
+                if (typeof hist[mode] === 'undefined') {
+                    console.log('no ' + mode + 'history');
+                    return false;
+                }
+                var newID;
+                if (typeof $('#cmd').attr('data-id') === 'undefined') {
+                    newID = hist[mode].length - 1;
+                } else {
+                    newID = $('#cmd').attr('data-id') - 1;
+                }
+                if (newID < 0) newID = hist[mode].length - 1;
+                $('#cmd').attr('data-id', newID).val(hist[mode][newID]);
+            }
+            break;
+        case 40: // down
+            if ($('#cmd').is(':focus')) {
+                e.preventDefault();
+                var hist = {};
+                var mode = $('#cmd').attr('data-mode');
+                if (typeof Storage === 'function') {
+                    if (typeof localStorage.cmdHist !== 'undefined' && localStorage.cmdHist !== '') hist = JSON.parse(localStorage.getItem('cmdHist'));
+                } else {
+                }
+                if (typeof hist[mode] === 'undefined') {
+                    console.log('no ' + mode + 'history');
+                    return false;
+                }
+                var newID;
+                if (typeof $('#cmd').attr('data-id') === 'undefined') {
+                    newID = 0;
+                } else {
+                    newID = parseInt($('#cmd').attr('data-id')) + 1;
+                }
+                if (newID >= hist[mode].length) newID = 0;
+                $('#cmd').attr('data-id', newID).val(hist[mode][newID]);
+            }
+            break;
+        case 192: // `
+            if (!$('#devBox').length) {
+                //TODO: get permissions
+                $.get({
+                    url: '/html/devbox.html',
+                    cache: false
+                }).done(function(html) {
+                    $('body').prepend(trimHTML(html));
+                    $('#devBox').find('.submit').on('click', function() {
+                        runcmd($('#cmd').val());
+                        $('#cmd').val('');
+                    });
+                    $('#cmd').focus();
+                });
+            } else {
+                e.preventDefault();
+                if ($('#cmd').val().indexOf('sql ') !== 0) {
+                    $('#devBox').toggleClass('hidden');
+                }
+                if (!$('#devBox').hasClass('hidden')) {
+                    $('#cmd').focus();
+                }
+                if ($('#cmd').val() === '`') $('#cmd').val('');
+            }
+            break;
         default:
+            console.log('No action defined for ' + e.which);
             break;
     }
 });
+
+function runcmd(cmd) {
+    var mode = $('#cmd').attr('data-mode');
+    if (cmd === 'clear') {
+        $('#console').html('');
+    } else if (cmd === 'clear history') {
+        localStorage.setItem('cmdHist', '');
+    } else if (['js','php','sql'].indexOf(cmd) > -1) {
+        $('#cmd').attr('data-mode', cmd).val('');
+    } else if (mode == 'js') {
+        var result = eval(cmd);
+        var output;
+        switch (typeof result) {
+            case 'object':
+                output = JSON.stringify(result);
+                break;
+            default:
+                output = result;
+                break;
+        }
+        $('#console').append('<pre class="cmd">' + cmd + '</pre>').append('<pre>' + output + '</pre>').animate({ scrollTop: $('#console').prop("scrollHeight")}, 300);
+        //TODO: localStorage store cmd history
+    } else {
+        ajax = $.ajax({
+            url: '/',
+            type: 'POST',
+            dataType: 'json',
+            data: parms
+        }).always(function(data) {
+            //TODO: ajax
+        });
+    }
+
+    //TODO: detect error, prevent saving
+    if (typeof Storage === 'function' && (['js','php','sql'].indexOf(cmd) !== false)) {
+        var hist = {};
+        if (typeof localStorage.cmdHist !== 'undefined' && localStorage.cmdHist !== '') hist = JSON.parse(localStorage.getItem('cmdHist'));
+        if (typeof hist[mode] === 'undefined') hist[mode] = [];
+        if (hist[mode].indexOf(cmd) > -1) {
+            hist[mode].splice(hist[mode].indexOf(cmd));
+        }
+        hist[mode].push(cmd);
+        localStorage.setItem('cmdHist', JSON.stringify(hist));
+        $('#cmd').attr('data-id', hist[mode].length + 1);
+    }
+}

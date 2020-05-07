@@ -80,9 +80,11 @@ class Session {
         }
     }
 
-    public function authCheck($config, &$data, $key, $permission) {
+    public function authCheck($config, &$data, $key, $permission, $errorOnNoAuth = true) {
         $isAuth = (!empty($config['mapping'][$key]['noauth']) || !empty($this->user['authority'][$key][$permission]));
-        if (!$isAuth) {
+        if (!$isAuth && $errorOnNoAuth) {
+            $data['key'] = $key;
+            $data['permission'] = $permission;
             $data['status'] = 403;
             if (!empty($this->user['authority'])) $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
         }
