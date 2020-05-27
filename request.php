@@ -218,9 +218,21 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
                     }
                 }
             }
+            if (isset($map['children']) && (sizeof($results) === 1) || !empty($map['listWithChildren'])) {
+                foreach($map['children'] as $k => $child) {
+                    $result[$k] = recurseTables($config, $db, $sess, $request, $permission, $data, $child, $k, $result[$map['pk']['alias']]);
+                }
+            }
             if (isset($map['extInfo'])) {
                 foreach($map['extInfo'] as $k => $ext) {
-                    $extInfo = recurseTables($config, $db, $sess, $request, $permission, $data, $ext, $k, $result[$map['pk']['alias']]);
+                    if ($ext['type'] === 'sum') {
+                        $result[$k] = 0;
+                        foreach ($result[$ext['key']] as $row) {
+                            $result[$k] += $row[$ext['col']];
+                        }
+                    } else {
+                        $extInfo = recurseTables($config, $db, $sess, $request, $permission, $data, $ext, $k, $result[$map['pk']['alias']]);
+                    }
                     if (!empty($extInfo)) {
                         foreach($extInfo[0] as $key => $col) {
                             $result[$key] = $col;
@@ -228,11 +240,7 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
                     }
                 }
             }
-            if (isset($map['children']) && (sizeof($results) === 1) || !empty($map['listWithChildren'])) {
-                foreach($map['children'] as $k => $child) {
-                    $result[$k] = recurseTables($config, $db, $sess, $request, $permission, $data, $child, $k, $result[$map['pk']['alias']]);
-                }
-            }
+            $result['editing'] = 0;
         }
 
         $data['status'] = 200;

@@ -50,7 +50,10 @@ const vueMethods = {
             else newObj[i] = null;
         }
         newObj[defOpts] = this[defOpts];
-        this[view][0][child].unshift(newObj);
+        Vue.nextTick(function() {
+            vueobj[view][0][child].unshift(newObj);
+        });
+        //TODO: edit mode on creation
         //TODO: just expand, don't trigger click - clicks all and is wonky
         $('#' + view + ' .modalOnly .toggleCollapse:first').trigger('click');
     },
@@ -488,14 +491,20 @@ $(document).on('click', '.toggleCollapse', function() {
         $(this).parent().find('.collapse[data-collapse-id="' + $(this).attr('data-collapse-id') + '"]').hasClass('collapsed') ? 'fas fa-chevron-down' : 'fas fa-chevron-up');
 });
 
-$(document).on('click','.changeState', function() {
+$(document).on('click', '.edit', function(e) {
+    e.stopPropagation();
+    var el = $(this);
+    Vue.set(vueobj[h.view][el.attr('data-id')][el.attr('data-set')][el.attr('data-idx')], 'editing', true);
+});
+
+$(document).on('click','.editing .changeState', function() {
     var el = $(this);
     var state = vueobj[h.view][el.attr('data-id')][el.attr('data-set')][el.attr('data-idx')][el.attr('data-line')][el.attr('data-lidx')][el.attr('data-state')];
     if (typeof state !== 'number') state = 0;
     if (state >= el.attr('data-maxstate')) state = -1;
     state ++;
     console.log(state);
-    vueobj[h.view][el.attr('data-id')][el.attr('data-set')][el.attr('data-idx')][el.attr('data-line')][el.attr('data-lidx')][el.attr('data-state')] = state;
+    Vue.set(vueobj[h.view][el.attr('data-id')][el.attr('data-set')][el.attr('data-idx')][el.attr('data-line')][el.attr('data-lidx')], el.attr('data-state'), state);
 });
 
 $(window).on('hashchange', function() {
