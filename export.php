@@ -45,29 +45,8 @@ function getSiblingExports($config, $db, $sess, $request, $data, $field, $value,
         $group = ' AND (' . implode(' AND ', $parmMarkers) . ')';
     }
 
-    // $rawSQL = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$map['table']}.sql");
     $where = "WHERE {$map['pk']['field']} IN (SELECT {$map['pk']['param']} FROM {$map['table']} $request WHERE $field = ? AND ({$exportMap['criteria']})$group)";
-    // $sql = str_replace('/*where*/', $where, $rawSQL);
-
-    $results = recurseTables($config, $db, $sess, $request, 'r', $data, $config['mapping'][$request], $request, null, null, null, $where, $parms);
-/*
-    $stmt = $db[$map['db']]->prepare($sql);
-    $stmt->execute($parms);
-    $results = $stmt->fetchAll();
-    if (isset($map['children'])) {
-        $rawSQL = [];
-        foreach($results as &$result) {
-            foreach($map['children'] as $k => $child) {
-                if (!isset($rawSQL[$k])) $rawSQL[$k] = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$child['table']}.sql");
-                $where = "WHERE {$child['fk']['field']} = ?";
-                $dsql = str_replace('/*where*!!!!!/', $where, $rawSQL[$k]);
-                $dstmt = $db[$child['db']]->prepare($dsql);
-                $dstmt->execute([$result[$map['pk']['alias']]]);
-                $result[$k] = $dstmt->fetchAll();
-            }
-        }
-    }
-*/
+    $results = recurseTables($config, $db, $sess, $request, 'r', $data, $config['mapping'][$request], $request, null, null, null, true, $where, $parms);
     return $results;
 }
 

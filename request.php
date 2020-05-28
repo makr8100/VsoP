@@ -105,7 +105,7 @@ if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml',
     echo json_encode($data, !empty($_REQUEST['tidy']) ? JSON_PRETTY_PRINT : null);
 }
 
-function recurseTables($config, $db, $sess, $request, $permission, &$data, $map, $prefix, $pfk = null, $pg = null, $pp = null, $where = '', $parms = []) {
+function recurseTables($config, $db, $sess, $request, $permission, &$data, $map, $prefix, $pfk = null, $pg = null, $pp = null, $isExport = false, $where = '', $parms = []) {
     if (!$sess->authCheck($config, $data, $config['mapping'][$request]['auth'], $permission)) {
         $data['status'] = 403;
         $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
@@ -220,7 +220,7 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
                     }
                 }
             }
-            if (isset($map['children']) && (sizeof($results) === 1) || !empty($map['listWithChildren'])) {
+            if (isset($map['children']) && ((sizeof($results) === 1) || !empty($map['listWithChildren'] || $isExport))) {
                 foreach($map['children'] as $k => $child) {
                     $result[$k] = recurseTables($config, $db, $sess, $request, $permission, $data, $child, $k, $result[$map['pk']['alias']]);
                 }
