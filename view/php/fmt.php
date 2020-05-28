@@ -4,11 +4,11 @@
  * fmt.php - output formatter
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2020-01-17
+ * @copyright    2020-05-28
  * @package      VsoP
  * @name         fmt.php
  * @since        2020-01-10
- * @version      0.15
+ * @version      0.17
  * @license      MIT
  */
 

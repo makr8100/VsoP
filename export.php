@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * export.php - map data for writing to another database or table
+ *
+ * @author       Mark Gullings <makr8100@gmail.com>
+ * @copyright    2020-05-28
+ * @package      VsoP
+ * @name         request.php
+ * @since        2020-01-23
+ * @version      0.17
+ * @license      MIT
+ */
+
 if (!$sess->authCheck($config, $data, $request, 'r') || !$sess->authCheck($config, $data, 'export', 'w')) {
     $data['status'] = 403;
     $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
@@ -16,12 +28,12 @@ if (!$sess->authCheck($config, $data, $request, 'r') || !$sess->authCheck($confi
             $data['exports'] = recurseExportTables($db, $parmValue, $data, $map['exportMap'], $map, $exportMap, $map['db'], $map['exportDB'], $_REQUEST['data']['exportList']);
             if (!empty($data['exports'])) $data['messages'][] = [ 'type' => 'success', 'message' => 'Generated PO Number ' . $data['exports'] ];
         } else {
-            $data['exports'] = getSiblingExports($config, $db, $request, $parmField, $parmValue, $map, $exportMap, $data['results'][0]);
+            $data['exports'] = getSiblingExports($config, $db, $sess, $request, $data, $parmField, $parmValue, $map, $exportMap, $data['results'][0]);
         }
     }
 }
 
-function getSiblingExports($config, $db, $request, $field, $value, $map, $exportMap, $result) {
+function getSiblingExports($config, $db, $sess, $request, $data, $field, $value, $map, $exportMap, $result) {
     $parms = [$value];
     $group = '';
     if (!empty($exportMap['group'])) {
@@ -33,9 +45,12 @@ function getSiblingExports($config, $db, $request, $field, $value, $map, $export
         $group = ' AND (' . implode(' AND ', $parmMarkers) . ')';
     }
 
-    $rawSQL = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$map['table']}.sql");
+    // $rawSQL = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$map['table']}.sql");
     $where = "WHERE {$map['pk']['field']} IN (SELECT {$map['pk']['param']} FROM {$map['table']} $request WHERE $field = ? AND ({$exportMap['criteria']})$group)";
-    $sql = str_replace('/*where*/', $where, $rawSQL);
+    // $sql = str_replace('/*where*/', $where, $rawSQL);
+
+    $results = recurseTables($config, $db, $sess, $request, 'r', $data, $config['mapping'][$request], $request, null, null, null, $where, $parms);
+/*
     $stmt = $db[$map['db']]->prepare($sql);
     $stmt->execute($parms);
     $results = $stmt->fetchAll();
@@ -45,13 +60,14 @@ function getSiblingExports($config, $db, $request, $field, $value, $map, $export
             foreach($map['children'] as $k => $child) {
                 if (!isset($rawSQL[$k])) $rawSQL[$k] = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$child['table']}.sql");
                 $where = "WHERE {$child['fk']['field']} = ?";
-                $dsql = str_replace('/*where*/', $where, $rawSQL[$k]);
+                $dsql = str_replace('/*where*!!!!!/', $where, $rawSQL[$k]);
                 $dstmt = $db[$child['db']]->prepare($dsql);
                 $dstmt->execute([$result[$map['pk']['alias']]]);
                 $result[$k] = $dstmt->fetchAll();
             }
         }
     }
+*/
     return $results;
 }
 

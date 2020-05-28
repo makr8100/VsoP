@@ -3,14 +3,14 @@
 <?php
 
 /**
- * htmlBody.php - recurses navigation tree structure and creates HTML for nav bar
+ * htmlBody.php - output page body
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2019-12-13
+ * @copyright    2020-05-28
  * @package      VsoP
  * @name         htmlBody.php
  * @since        2019-06-24
- * @version      0.13
+ * @version      0.17
  * @license      MIT
  */
 

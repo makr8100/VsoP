@@ -4,11 +4,11 @@
  * request.php - AJAX handler
  *
  * @author       Mark Gullings <makr8100@gmail.com>
- * @copyright    2020-01-17
+ * @copyright    2020-05-28
  * @package      VsoP
  * @name         request.php
  * @since        2019-06-24
- * @version      0.15
+ * @version      0.17
  * @license      MIT
  */
 
@@ -105,7 +105,7 @@ if (isset($_REQUEST['fmt']) && in_array($_REQUEST['fmt'], ['html', 'pdf', 'xml',
     echo json_encode($data, !empty($_REQUEST['tidy']) ? JSON_PRETTY_PRINT : null);
 }
 
-function recurseTables($config, $db, $sess, $request, $permission, &$data, $map, $prefix, $pfk = null, $pg = null, $pp = null) {
+function recurseTables($config, $db, $sess, $request, $permission, &$data, $map, $prefix, $pfk = null, $pg = null, $pp = null, $where = '', $parms = []) {
     if (!$sess->authCheck($config, $data, $config['mapping'][$request]['auth'], $permission)) {
         $data['status'] = 403;
         $data['messages'][] = [ 'type' => 'error', 'message' => 'Not Authorized!' ];
@@ -113,89 +113,91 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
     }
 
     if ($map['type'] == 'db') {
-        $where = '';
-        $whereParts = [];
-        if (isset($map['filters']['always'])) $whereParts = ["({$map['filters']['always']})"];
-        $parms = [];
-        $getKey = false;
-        if (!empty($map['fk']) && !empty($pfk)) {
-            $whereParts[] = "{$map['fk']['field']} = ?";
-            $parms[] = $pfk;
-        } else {
-            foreach($_REQUEST['data'] as $k => &$parm) {
-                if (isset($map['charConversion'])) {
-                    $parm = mb_convert_encoding($parm, $map['charConversion']);
-                }
-                if (isset($map['pk']) && $map['pk']['param'] == $k && !empty($parm)) {
-                    $whereParts[] = $map['pk']['field'] . ' = ?';
-                    $parms[] = $parm;
-                    $getKey = true;
-                } else if (isset($map['filters'][$k])) {
-                    if (!is_array($map['filters'][$k]) && sizeof(explode('::', $map['filters'][$k])) == 2) {
-                        $fk = explode('::', $map['filters'][$k]);
-                        if ($fk[0] === 'key') {
-                            $whereParts[] = "? IN ($k.{$fk[1]})";
-                        } else if ($fk[0] === 'nqkey') {
-                            $whereParts[] = "? IN ({$fk[1]})";
-                        } else if ($fk[0] === 'field') {
-                            $whereParts[] = "? IN ($prefix.{$fk[1]})";
-                        } else if ($fk[0] === 'date') {
-                            $dte = DateTime::createFromFormat('Y-m-d', $parm);
-                            $whereParts[] = $fk[2];
-                            $parm = $dte->format($fk[1]);
-                        } else if ($fk[0] === 'dateint') {
-                            $dte = DateTime::createFromFormat('Y-m-d', $parm);
-                            $whereParts[] = $fk[2];
-                            $parm = intval($dte->format($fk[1]));
-                        }
-                        $parms[] = $parm;
-                    } else if (!is_array($map['filters'][$k]) && strpos($map['filters'][$k], '?')) {
-                        $whereParts[] = $map['filters'][$k];
-                        $parms[] = $parm;
-                    } else if (!empty($map['filters'][$k][$parm])) {
-                        $whereParts[] = $map['filters'][$k][$parm];
-                    } else {
-                        //TODO: necessary?
-                        $whereParts[] = '1 = 1';
-                    }
-                }
-            }
-
-            //TODO: make default an object, foreach it, and set each filter conditionally
-            if (empty($whereParts) && isset($map['filters']['default'])) {
-                $whereParts[] = $map['filters'][$map['filters']['default'][0]][$map['filters']['default'][1]];
-            }
-        }
-
-        if (!empty($whereParts)) $where = "WHERE " . implode(' AND ', $whereParts);
-
-        if (isset($map['charConversion'])) {
-            foreach ($parms as &$parm) {
-                $parm = mb_convert_encoding($parm, $map['charConversion']);
-            }
-        }
-
         $rawSQL = file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/../sql/{$map['table']}.sql");
 
-        $limit = '';
-        if (!$getKey && !empty($pg) && !empty($pp)) {
-            $start = ($pg - 1) * $pp;
-            if (!isset($map['pageSyntax']) || $map['pageSyntax'] !== 'rownumber') $limit = "LIMIT $start, $pp";
+        if (empty($where) || empty($parms)) {
+            $whereParts = [];
+            if (isset($map['filters']['always'])) $whereParts = ["({$map['filters']['always']})"];
+            $getKey = false;
+            if (!empty($map['fk']) && !empty($pfk)) {
+                $whereParts[] = "{$map['fk']['field']} = ?";
+                $parms[] = $pfk;
+            } else {
+                foreach($_REQUEST['data'] as $k => &$parm) {
+                    if (isset($map['charConversion'])) {
+                        $parm = mb_convert_encoding($parm, $map['charConversion']);
+                    }
+                    if (isset($map['pk']) && $map['pk']['param'] == $k && !empty($parm)) {
+                        $whereParts[] = $map['pk']['field'] . ' = ?';
+                        $parms[] = $parm;
+                        $getKey = true;
+                    } else if (isset($map['filters'][$k])) {
+                        if (!is_array($map['filters'][$k]) && sizeof(explode('::', $map['filters'][$k])) == 2) {
+                            $fk = explode('::', $map['filters'][$k]);
+                            if ($fk[0] === 'key') {
+                                $whereParts[] = "? IN ($k.{$fk[1]})";
+                            } else if ($fk[0] === 'nqkey') {
+                                $whereParts[] = "? IN ({$fk[1]})";
+                            } else if ($fk[0] === 'field') {
+                                $whereParts[] = "? IN ($prefix.{$fk[1]})";
+                            } else if ($fk[0] === 'date') {
+                                $dte = DateTime::createFromFormat('Y-m-d', $parm);
+                                $whereParts[] = $fk[2];
+                                $parm = $dte->format($fk[1]);
+                            } else if ($fk[0] === 'dateint') {
+                                $dte = DateTime::createFromFormat('Y-m-d', $parm);
+                                $whereParts[] = $fk[2];
+                                $parm = intval($dte->format($fk[1]));
+                            }
+                            $parms[] = $parm;
+                        } else if (!is_array($map['filters'][$k]) && strpos($map['filters'][$k], '?')) {
+                            $whereParts[] = $map['filters'][$k];
+                            $parms[] = $parm;
+                        } else if (!empty($map['filters'][$k][$parm])) {
+                            $whereParts[] = $map['filters'][$k][$parm];
+                        } else {
+                            //TODO: necessary?
+                            $whereParts[] = '1 = 1';
+                        }
+                    }
+                }
 
-            $sql = 'SELECT COUNT(*) FROM (' . str_replace('/*where*/', $where, $rawSQL) . ') AS t';
-// echo "$sql\n\n";
-            $stmt = $db[$map['db']]->prepare($sql);
-            $stmt->execute($parms);
-            $data['resultCount'] = $stmt->fetchAll(PDO::FETCH_NUM)[0][0];
-            $data['pp'] = $pp;
-        }
+                //TODO: make default an object, foreach it, and set each filter conditionally
+                if (empty($whereParts) && isset($map['filters']['default'])) {
+                    $whereParts[] = $map['filters'][$map['filters']['default'][0]][$map['filters']['default'][1]];
+                }
+            }
 
-        if (!$getKey && !empty($pg) && !empty($pp) && isset($map['pageSyntax']) && $map['pageSyntax'] === 'rownumber') {
-            $end = $start + $pp;
-            $start ++;
-            $order = '';
-            if (isset($map['order'])) $order = $map['order'];
-            $sql = str_replace('/*order*/', $order, str_replace('/*where*/', $where, "SELECT * FROM (SELECT ROW_NUMBER() OVER(/*order*/) AS RNUM, r.* FROM ($rawSQL) AS r) AS t WHERE RNUM BETWEEN $start AND $end"));
+            if (!empty($whereParts)) $where = "WHERE " . implode(' AND ', $whereParts);
+
+            if (isset($map['charConversion'])) {
+                foreach ($parms as &$parm) {
+                    $parm = mb_convert_encoding($parm, $map['charConversion']);
+                }
+            }
+
+            $limit = '';
+            if (!$getKey && !empty($pg) && !empty($pp)) {
+                $start = ($pg - 1) * $pp;
+                if (!isset($map['pageSyntax']) || $map['pageSyntax'] !== 'rownumber') $limit = "LIMIT $start, $pp";
+
+                $sql = 'SELECT COUNT(*) FROM (' . str_replace('/*where*/', $where, $rawSQL) . ') AS t';
+    // echo "$sql\n\n";
+                $stmt = $db[$map['db']]->prepare($sql);
+                $stmt->execute($parms);
+                $data['resultCount'] = $stmt->fetchAll(PDO::FETCH_NUM)[0][0];
+                $data['pp'] = $pp;
+            }
+
+            if (!$getKey && !empty($pg) && !empty($pp) && isset($map['pageSyntax']) && $map['pageSyntax'] === 'rownumber') {
+                $end = $start + $pp;
+                $start ++;
+                $order = '';
+                if (isset($map['order'])) $order = $map['order'];
+                $sql = str_replace('/*order*/', $order, str_replace('/*where*/', $where, "SELECT * FROM (SELECT ROW_NUMBER() OVER(/*order*/) AS RNUM, r.* FROM ($rawSQL) AS r) AS t WHERE RNUM BETWEEN $start AND $end"));
+            } else {
+                $sql = str_replace('/*where*/', $where, str_replace('/*limit*/', $limit, $rawSQL));
+            }
         } else {
             $sql = str_replace('/*where*/', $where, str_replace('/*limit*/', $limit, $rawSQL));
         }
@@ -229,6 +231,11 @@ function recurseTables($config, $db, $sess, $request, $permission, &$data, $map,
                         $result[$k] = 0;
                         foreach ($result[$ext['key']] as $row) {
                             $result[$k] += $row[$ext['col']];
+                        }
+                    } else if ($ext['type'] === 'nempty') {
+                        $result[$k] = 1;
+                        foreach ($result[$ext['key']] as $row) {
+                            if (empty($row[$ext['col']])) $result[$k] = 0;
                         }
                     } else {
                         $extInfo = recurseTables($config, $db, $sess, $request, $permission, $data, $ext, $k, $result[$map['pk']['alias']]);
