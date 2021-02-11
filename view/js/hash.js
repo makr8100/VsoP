@@ -98,7 +98,7 @@ const vueMethods = {
         return Math.ceil(this.resultCount / this.pp);
     },
     removeElement: function(el) {
-        $('#' + el).remove();
+        $(el).remove();
     },
     exportConfirm: function() {
         var exports = [];
@@ -417,22 +417,26 @@ function doExport(confirm, exportList) {
     }).done(function(data) {
         console.log(data);
 
-        var vueexp = new Vue({
-            el: '#exportPreview',
-            data: { exportPreview: {}, proper: '' },
-            methods: vueMethods
-        });
+        if (confirm) {
+            removeElement('#exportPreview');
+        } else {
+            var vueexp = new Vue({
+                el: '#exportPreview',
+                data: { exportPreview: {}, proper: '' },
+                methods: vueMethods
+            });
+
+            vueobj[data.request] = data.results;
+            if (data.exports.length) {
+                vueexp.exportPreview = data.exports;
+                vueexp.proper = data.proper;
+            } else {
+                //TODO: error - 0 results, need response from export write
+                console.log('exports read failed');
+            }
+        }
 
         $('#loadingScreen').hide();
-        
-        vueobj[data.request] = data.results;
-        if (data.exports.length) {
-            vueexp.exportPreview = data.exports;
-            vueexp.proper = data.proper;
-        } else {
-            //TODO: error - 0 results, need response from export write
-            console.log('exports read failed');
-        }
     }).fail(function(data) {
         console.log(data);
     });
@@ -488,7 +492,8 @@ $(document).on('click', '.export', function() {
 $(document).on('click', '.toggleCollapse', function() {
     $(this).parent().find('.collapse[data-collapse-id="' + $(this).attr('data-collapse-id') + '"]').toggleClass('collapsed');
     $(this).find('.close > i').attr('class',
-        $(this).parent().find('.collapse[data-collapse-id="' + $(this).attr('data-collapse-id') + '"]').hasClass('collapsed') ? 'fas fa-chevron-down' : 'fas fa-chevron-up');
+        $(this).parent().find('.collapse[data-collapse-id="' + $(this).attr('data-collapse-id') + '"]').hasClass('collapsed') ? 'fas fa-chevron-down' : 'fas fa-chevron-up'
+    );
 });
 
 $(document).on('click', '.edit', function(e) {
